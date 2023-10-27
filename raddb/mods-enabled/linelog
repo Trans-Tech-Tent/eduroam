@@ -1,0 +1,38 @@
+linelog eduroam_log {
+    filename = ${logdir}/eduroam
+    reference = "eduroam_log.%{%{reply:Packet-Type}:-format}"
+    eduroam_log {
+        Access-Accept = "eduroam-auth#ORG=%{request:Realm}#USER=%{User-Name}#CSI=%{Calling-Station-Id}#NAS=%{Called-Station-Id}#CUI=%{reply:Chargeable-User-Identity}#RESULT=OK#"
+        Access-Reject = "eduroam-auth#ORG=%{request:Realm}#USER=%{User-Name}#CSI=%{Calling-Station-Id}#NAS=%{Called-Station-Id}#CUI=%{reply:Chargeable-User-Identity}#RESULT=FAIL#"
+    }
+}
+
+linelog linelog_recv_request {
+    filename = ${logdir}/linelog
+	format = "action = Recv-Request, %{pairs:request:}"
+}
+
+linelog linelog_send_accept {
+    filename = ${logdir}/linelog
+	format = "action = Send-Accept, %{pairs:request:}"
+}
+
+linelog linelog_send_reject {
+    filename = ${logdir}/linelog
+	format = "action = Send-Reject, %{pairs:request:}"
+}
+
+linelog linelog_send_proxy_request {
+    filename = ${logdir}/linelog
+	format = "action = Send-Proxy-Request, %{pairs:proxy-request:}"
+}
+
+linelog linelog_recv_proxy_response {
+    filename = ${logdir}/linelog
+	reference = "messages.%{proxy-reply:Response-Packet-Type}"
+	messages {
+		Access-Accept = "action = Recv-Proxy-Accept, User-Name = %{User-Name}, Calling-Station-Id = %{Calling-Station-Id}, %{pairs:proxy-reply:}"
+		Access-Reject = "action = Recv-Proxy-Reject, User-Name = %{User-Name}, Calling-Station-Id = %{Calling-Station-Id}, %{pairs:proxy-reply:}"
+		Access-Challenge = "action = Recv-Proxy-Challenge, User-Name = %{User-Name}, Calling-Station-ID = %{Calling-Station-Id}, %{pairs:proxy-reply:}"
+	}
+}

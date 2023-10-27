@@ -1,0 +1,49 @@
+server eduroam-inner {
+	listen {
+		type = auth
+		ipaddr = ::1
+		port = 18120
+	}
+
+	authorize {
+		utf8
+
+		split_username_nai
+		if (noop || (&Stripped-User-Domain && \
+		    (&outer.Stripped-User-Domain != &Stripped-User-Domain))) {
+			reject
+		}
+
+		if (&outer.session-state:)
+			update {
+				&outer.session-state:Stripped-User-Name := &Stripped-User-Name
+			}
+		}
+
+		inner-eap {
+			ok = return
+		}
+
+		files
+
+		pap
+		mschap
+	}
+
+	authenticate {
+		inner-eap
+		mschap
+		pap
+	}
+
+	post-auth {
+		cui
+
+		Post-Auth-Type REJECT {
+			attr_filter.access_reject
+		}
+ 
+
+		eduroam_log
+	}
+}

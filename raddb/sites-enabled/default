@@ -1,0 +1,69 @@
+operator_name = "transtechtent.com"
+
+server eduroam {
+	listen {
+		type = auth
+		ipaddr = ::
+		port = 1812
+	}
+
+	authorize {
+		linelog_recv_request
+
+                cui
+		utf8
+
+		split_username_nai
+		if (noop || !&Stripped-User-Domain) {
+			reject
+		}
+
+		if (&Stripped-User-Domain != "${operator_name}") {
+			update {
+				control:Load-Balance-Key := &Calling-Station-ID
+				control:Proxy-To-Realm := 'eduroam_flr'
+				
+				request:Operator-Name := "1${operator_name}"
+			}
+			return
+		}
+
+		eap {
+			ok = return
+			updated = return
+		}
+	}
+
+	pre-proxy {
+		attr_filter.pre-proxy
+		cui
+		linelog_send_proxy_request
+	}
+
+	post-proxy {
+		attr_filter.post-proxy
+		linelog_recv_proxy_response
+	}
+
+	authenticate {
+		eap
+	}
+
+	post-auth {
+		if (&session-state:Stripped-User-Name) {
+			update reply {
+				User-Name := "%{session-state:Stripped-User-Name}@%{Stripped-User-Domain}"
+			}
+		}
+	
+		if ( request:Realm != "local") {
+		        eduroam_log
+	        }
+		linelog_send_accept
+
+		Post-Auth-Type REJECT {
+			attr_filter.access_reject
+			linelog_send_reject
+		}
+	}
+}

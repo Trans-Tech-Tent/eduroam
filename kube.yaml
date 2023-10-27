@@ -1,0 +1,89 @@
+apiVersion: crd.projectcalico.org/v1
+kind: IPPool
+metadata:
+  name: ttt-eduroam-ip6-ippool
+spec:
+  blockSize: 127
+  cidr: 2a0e:1cc1:1:0:7fff:ffff:ffff:ff28/125
+  disabled: false
+  nodeSelector: !all()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: freeradius
+  namespace: ttt-eduroam
+  labels:
+    app: freeradius
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: freeradius
+  template:
+    metadata:
+      annotations:
+        cni.projectcalico.org/ipv6pools: "[\"ttt-eduroam-ip6-ippool\"]"
+      labels:
+        app: freeradius
+    spec:
+      volumes:
+        - name: eap-tls
+          secret:
+            secretName: eap-tls
+        - name: users
+          secret:
+            secretName: eap-users
+      containers:
+        - name: freeradius
+          image: as207960/ttt-eduroam-freeradius:12
+          args: ["-l", "stdout"]
+          ports:
+            - containerPort: 1812
+          volumeMounts:
+            - mountPath: "/eap-tls/"
+              name: eap-tls
+            - mountPath: "/etc/raddb/mods-config/files/"
+              name: users
+          envFrom:
+            - secretRef:
+                name: eduroam-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: freeradius
+  namespace: ttt-eduroam
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app: freeradius
+  ports:
+    - port: 1812
+      targetPort: 1812
+      protocol: UDP
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: eap-cert
+  namespace: ttt-eduroam
+spec:
+  secretName: eap-tls
+  duration: 2160h
+  renewBefore: 360h
+  commonName: transtechtent.com
+  isCA: false
+  privateKey:
+    size: 4096
+    algorithm: RSA
+    encoding: PKCS1
+  usages:
+    - server auth
+  dnsNames:
+    - transtechtent.com
+  issuerRef:
+    name: letsencrypt-as207960-ltd-uk
+    kind: ClusterIssuer
+    group: cert-manager.io
